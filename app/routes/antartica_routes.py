@@ -6,6 +6,32 @@ from app.utils.geojson_converter import features_to_geojson_from_db
 
 router = APIRouter(prefix="/antartica", tags=["Antártica"])
 
+@router.post("/reload-data", tags=["ETL"])
+def reload_data():
+    """
+    Recarga toda la data desde ArcGIS → Postgres.
+    Ejecuta el proceso ETL completo.
+    """
+    import subprocess
+    import sys
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "app.etl"],
+            capture_output=True,
+            text=True
+        )
+
+        return {
+            "status": "ok",
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/estacion/{nombre}")
 def endpoint_by_station(nombre: str, limit: int = 100, offset: int = 0):
     rows = db_service.get_by_station(nombre, limit=limit, offset=offset)
