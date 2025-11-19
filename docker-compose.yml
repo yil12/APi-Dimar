@@ -37,16 +37,6 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
-  loader:
-    build: .
-    command: python -u -m app.etl
-    env_file:
-      - .env
-    depends_on:
-      - db
-    volumes:
-      - ./:/app
-
 volumes:
   pgdata:
   pgadmin_data:
