@@ -4,7 +4,7 @@ from app.db import get_db
 from app.services import db_service
 from app.utils.geojson_converter import features_to_geojson_from_db
 
-router = APIRouter(prefix="/antartica", tags=["Antártica"])
+router = APIRouter(prefix="/meteorologico", tags=["Meteorologico"])
 
 @router.get("/estacion/{nombre}")
 def endpoint_by_station(nombre: str, limit: int = 100, offset: int = 0):

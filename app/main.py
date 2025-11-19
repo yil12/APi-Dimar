@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.core.config import settings
+from fastapi.middleware.cors import CORSMiddleware
 from app.routes.antartica_routes import router as ant_router
 from app.db import Base, engine
 from sqlalchemy import text
@@ -10,6 +11,15 @@ app = FastAPI(
     version="1.0",
     docs_url="/swagger",
     redoc_url="/redoc"
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Crear las tablas al iniciar
