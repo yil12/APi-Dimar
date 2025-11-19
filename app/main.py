@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.routes.antartica_routes import router as ant_router
 from app.db import Base, engine
+from sqlalchemy import text
 
 app = FastAPI(
     title="API Antártica (cached DB)",
