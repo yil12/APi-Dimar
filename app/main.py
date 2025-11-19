@@ -14,7 +14,13 @@ app = FastAPI(
 # Crear las tablas al iniciar
 @app.on_event("startup")
 def startup_event():
-    Base.metadata.create_all(bind=engine)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print(" Conectado a la base de datos correctamente.")
+    except Exception as e:
+        print(" Error al conectar a la base de datos:")
+        print(e)
 
 app.include_router(ant_router)
 
