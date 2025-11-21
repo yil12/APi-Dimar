@@ -97,3 +97,22 @@ def endpoint_years_by_station(station: str, db: Session = Depends(get_db)):
         "total_years": len(years),
         "years": years
     }
+
+@router.get("/mediciones/por-anio/{year}")
+def endpoint_measurements_by_year(
+    year: int,
+    page: int = 1,
+    limit: int = 200,
+    db: Session = Depends(get_db)
+):
+    total, rows = db_service.get_measurements_by_year(db, year, page, limit)
+
+    return {
+        "exito": True,
+        "year": year,
+        "page": page,
+        "limit": limit,
+        "total_registros": total,
+        "total_paginas": (total // limit) + 1,
+        "features": features_to_geojson_from_db(rows)
+    }

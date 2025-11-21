@@ -1,6 +1,9 @@
+import requests
 from app.db import SessionLocal
+from fastapi import HTTPException
 from app.models import Medicion
 from sqlalchemy import select, func, extract
+from app.core.config import settings
 
 def get_by_station(station: str, limit: int = 100, offset: int = 0):
     session = SessionLocal()
@@ -127,3 +130,16 @@ def get_years_by_station(db, station: str):
 
     return sorted(set(years))
 
+def get_measurements_by_year(db, year: int, page: int, limit: int):
+    offset = (page - 1) * limit
+
+    query = (
+        db.query(Medicion)
+        .filter(func.extract('year', Medicion.fecha) == year)
+    )
+
+    total = query.count()
+
+    rows = query.offset(offset).limit(limit).all()
+
+    return total, rows

@@ -9,8 +9,7 @@ app = FastAPI(
     title="API Antártica (cached DB)",
     description="FastAPI servicio que sirve datos convertidos desde ArcGIS (guardados en Postgres).",
     version="1.0",
-    docs_url="/swagger",
-    redoc_url="/redoc"
+    docs_url="/swagger"
 )
 
 
