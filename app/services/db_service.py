@@ -91,6 +91,8 @@ def get_by_depth(db, depth: float):
 def get_depths_by_station(db, station: str):
     rows = (
         db.query(Medicion.profundidad)
+        .filter(Medicion.longitud != -99999)
+        .filter(Medicion.latitud != -99999)
         .filter(Medicion.estacion == station)
         .filter(Medicion.profundidad.isnot(None))   # evita NULL
         .distinct()
@@ -106,6 +108,8 @@ def get_by_year_and_station(db, year: int, station: str):
         db.query(Medicion)
         .filter(Medicion.estacion == station)
         .filter(extract('year', Medicion.fecha) == year)
+        .filter(Medicion.longitud != -99999)
+        .filter(Medicion.latitud != -99999)
         .order_by(Medicion.fecha.asc())
         .all()
     )
@@ -114,7 +118,7 @@ def get_years_by_station(db, station: str):
     rows = (
         db.query(extract("year", Medicion.fecha).label("year"))
         .filter(Medicion.estacion == station)
-        .filter(Medicion.fecha.isnot(None))  # evita fechas nulas
+        .filter(Medicion.fecha.isnot(None))
         .distinct()
         .all()
     )
@@ -136,6 +140,8 @@ def get_measurements_by_year(db, year: int, page: int, limit: int):
     query = (
         db.query(Medicion)
         .filter(func.extract('year', Medicion.fecha) == year)
+        .filter(Medicion.longitud != -99999)
+        .filter(Medicion.latitud != -99999)
     )
 
     total = query.count()
@@ -143,3 +149,4 @@ def get_measurements_by_year(db, year: int, page: int, limit: int):
     rows = query.offset(offset).limit(limit).all()
 
     return total, rows
+
