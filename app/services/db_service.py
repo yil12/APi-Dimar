@@ -2,7 +2,7 @@ import requests
 from app.db import SessionLocal
 from fastapi import HTTPException
 from app.models import Medicion
-from sqlalchemy import select, func, extract
+from sqlalchemy import select, func, extract, and_, distinct
 from app.core.config import settings
 
 def get_by_station(station: str, limit: int = 100, offset: int = 0):
@@ -150,3 +150,30 @@ def get_measurements_by_year(db, year: int, page: int, limit: int):
 
     return total, rows
 
+
+def get_first_records_by_year(db, year: int):
+    rows = (
+        db.query(Medicion)
+        .filter(func.extract('year', Medicion.fecha) == year)
+        .filter(Medicion.longitud != -99999)
+        .filter(Medicion.latitud != -99999)
+        .order_by(
+            Medicion.estacion.asc(),
+            Medicion.fecha.asc()
+        )
+        .distinct(Medicion.estacion)
+        .all()
+    )
+    return rows
+
+def get_records_by_year_and_station(db, year: int, station: str):
+    rows = (
+        db.query(Medicion)
+        .filter(func.extract("year", Medicion.fecha) == year)
+        .filter(Medicion.estacion == station)
+        .filter(Medicion.longitud != -99999)
+        .filter(Medicion.latitud != -99999)
+        .order_by(Medicion.estacion.asc(), Medicion.fecha.asc())
+        .all()
+    )
+    return rows

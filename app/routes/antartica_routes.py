@@ -116,3 +116,49 @@ def endpoint_measurements_by_year(
         "total_paginas": (total // limit) + 1,
         "features": features_to_geojson_from_db(rows)
     }
+
+@router.get("/estaciones/por-anio/{year}")
+def endpoint_first_records_by_year(
+    year: int,
+    db: Session = Depends(get_db)
+):
+    rows = db_service.get_first_records_by_year(db, year)
+
+    features = features_to_geojson_from_db(rows)
+
+    return {
+        "exito": True,
+        "year": year,
+        "total": len(features),
+        "type": "FeatureCollection",
+        "features": features
+    }
+
+@router.get("/por-anio-y-estacion")
+def endpoint_by_year_and_station(
+    year: int,
+    station: str,
+    db: Session = Depends(get_db)
+):
+    rows = db_service.get_records_by_year_and_station(db, year, station)
+
+    if not rows:
+        return {
+            "exito": True,
+            "year": year,
+            "station": station,
+            "total": 0,
+            "type": "FeatureCollection",
+            "features": []
+        }
+
+    features = features_to_geojson_from_db(rows)
+
+    return {
+        "exito": True,
+        "year": year,
+        "station": station,
+        "total": len(features),
+        "type": "FeatureCollection",
+        "features": features
+    }
