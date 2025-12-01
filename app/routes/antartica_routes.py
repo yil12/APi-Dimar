@@ -1,5 +1,9 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
 from sqlalchemy.orm import Session
+from fastapi.responses import StreamingResponse
+import openpyxl
+from openpyxl.workbook import Workbook
+from io import BytesIO
 from app.db import get_db
 from app.services import db_service
 from app.utils.geojson_converter import features_to_geojson_from_db
@@ -162,3 +166,82 @@ def endpoint_by_year_and_station(
         "type": "FeatureCollection",
         "features": features
     }
+
+
+@router.get("/mediciones/anio/{year}")
+def endpoint_measurements_by_year_chunked(
+    year: int,
+    db: Session = Depends(get_db),
+    block_size: int = 800
+):
+
+    all_features = []
+    total = 0
+
+    for chunk in db_service.stream_measurements_by_year(db, year, block_size):
+        features = features_to_geojson_from_db(chunk)
+        all_features.extend(features)
+        total += len(features)
+
+    return {
+        "exito": True,
+        "year": year,
+        "block_size": block_size,
+        "total_registros": total,
+        "type": "FeatureCollection",
+        "features": all_features
+    }
+
+@router.get("/mediciones/descargar-excel-estaciones/{year}")
+def download_excel_by_year_grouped(
+    year: int,
+    db: Session = Depends(get_db)
+):
+    wb = Workbook()
+    wb.remove(wb.active)  # Quitamos la hoja por defecto
+
+    # Obtener todas las estaciones del año
+    stations = db_service.get_stations_by_year(db, year)
+
+    if not stations:
+        raise HTTPException(404, "No hay datos para ese año")
+
+    # Crear una hoja por estación
+    for station in stations:
+        ws = wb.create_sheet(title=str(station)[:31])  # Excel limita a 31 caracteres
+
+        # Encabezados
+        ws.append([
+            "OBJECTID", "GLOBALID", "ESTACION", "FECHA", "PROFUNDIDAD",
+            "TEMPERATURA", "SALINIDAD", "OXIGENO",
+            "LONGITUD", "LATITUD"
+        ])
+
+        # Datos por bloques para la estación actual
+        for chunk in db_service.stream_measurements_by_year_and_station(db, year, station):
+            for r in chunk:
+                ws.append([
+                    r.objectid,
+                    r.globalid,
+                    r.estacion,
+                    r.fecha.strftime("%Y-%m-%d %H:%M:%S") if r.fecha else None,
+                    r.profundidad,
+                    r.temperatura,
+                    r.salinidad,
+                    r.oxigeno,
+                    r.longitud,
+                    r.latitud,
+                ])
+
+    # Guardar en memoria
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename=iCEMAN_estaciones_{year}.xlsx"
+        }
+    )

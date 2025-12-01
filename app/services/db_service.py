@@ -177,3 +177,60 @@ def get_records_by_year_and_station(db, year: int, station: str):
         .all()
     )
     return rows
+
+def stream_measurements_by_year(db, year: int, block_size: int = 800):
+    offset = 0
+
+    while True:
+        rows = (
+            db.query(Medicion)
+            .filter(func.extract("year", Medicion.fecha) == year)
+            .filter(Medicion.longitud != -99999)
+            .filter(Medicion.latitud != -99999)
+            .order_by(Medicion.id.asc())
+            .offset(offset)
+            .limit(block_size)
+            .all()
+        )
+
+        if not rows:
+            break
+
+        yield rows
+
+        offset += block_size
+
+def get_stations_by_year(db, year: int):
+    rows = (
+        db.query(Medicion.estacion)
+        .filter(func.extract("year", Medicion.fecha) == year)
+        .filter(Medicion.estacion.isnot(None))
+        .distinct()
+        .order_by(Medicion.estacion.asc())
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def stream_measurements_by_year_and_station(db, year: int, station: str, block_size: int = 500):
+    offset = 0
+
+    while True:
+        rows = (
+            db.query(Medicion)
+            .filter(func.extract("year", Medicion.fecha) == year)
+            .filter(Medicion.estacion == station)
+            .filter(Medicion.longitud != -99999)
+            .filter(Medicion.latitud != -99999)
+            .order_by(Medicion.id.asc())
+            .offset(offset)
+            .limit(block_size)
+            .all()
+        )
+
+        if not rows:
+            break
+
+        yield rows
+        offset += block_size
+
