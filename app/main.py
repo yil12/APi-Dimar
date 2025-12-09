@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.antartica_routes import router as ant_router
+from app.routes.metereologia_routes import router as met_router
 from app.db import Base, engine
 from sqlalchemy import text
 
@@ -33,6 +34,7 @@ def startup_event():
         print(e)
 
 app.include_router(ant_router)
+app.include_router(met_router)
 
 @app.get("/")
 def root():

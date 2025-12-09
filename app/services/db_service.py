@@ -1,4 +1,8 @@
 import requests
+import httpx
+import os
+from datetime import datetime, timezone
+from typing import List, Dict, Any
 from app.db import SessionLocal
 from fastapi import HTTPException
 from app.models import Medicion
@@ -234,3 +238,80 @@ def stream_measurements_by_year_and_station(db, year: int, station: str, block_s
         yield rows
         offset += block_size
 
+async def get_unique_years() -> List[int]:
+    """
+    Obtiene los años únicos presentes en el campo 'Fecha' del servicio.
+    """
+    url = f"{settings.full_external_api_url}?where=1=1&outFields=Fecha&f=geojson"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if "error" in data:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Error del servicio ArcGIS: {data['error'].get('message', 'Desconocido')}"
+                )
+
+            unique_years = set()
+            for feature in data.get("features", []):
+                fecha_ms = feature.get("properties", {}).get("Fecha")
+                if fecha_ms is not None:
+                    try:
+                        # Convertir milisegundos a año
+                        year = datetime.utcfromtimestamp(fecha_ms / 1000).year
+                        unique_years.add(year)
+                    except (ValueError, OSError, TypeError):
+                        continue  # valor inválido, lo ignoramos
+
+            return sorted(unique_years)
+
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Tiempo de espera agotado")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Error de red: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
+async def get_unique_stations_by_year(year: int) -> List[Dict[str, Any]]:
+    """
+    Obtiene una única feature por estación (la primera encontrada)
+    durante el año especificado, con geometría y propiedades completas.
+    Usa la sintaxis DATE de ArcGIS para compatibilidad.
+    """
+    if year < 1900 or year > 2100:
+        raise HTTPException(status_code=400, detail="Año fuera de rango válido")
+
+    where_clause = f"Fecha >= DATE '{year}-01-01' AND Fecha < DATE '{year + 1}-01-01'"
+    url = f"{settings.full_external_api_url}?where={where_clause}&outFields=*&f=geojson"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if "error" in data:
+                msg = data["error"].get("message", "Error desconocido del servicio")
+                raise HTTPException(status_code=502, detail=f"Error del servicio ArcGIS: {msg}")
+
+            seen_stations = set()
+            unique_features = []
+
+            for feature in data.get("features", []):
+                estacion = feature.get("properties", {}).get("Estacion")
+                if estacion and estacion not in seen_stations:
+                    unique_features.append(feature)
+                    seen_stations.add(estacion)
+
+            return unique_features
+
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Tiempo de espera agotado")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Error de red: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
